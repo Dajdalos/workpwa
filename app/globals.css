@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #__next { height: 100%; }
+/* --- Dark mode defaults for text + form controls --- */
+@layer base {
+  body {
+    @apply text-slate-900 dark:text-slate-100;
+  }
+  input, textarea, select {
+    @apply bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100
+           placeholder-slate-400 dark:placeholder-slate-500
+           border border-slate-300 dark:border-slate-700 rounded-xl;
+  }
+  table {
+    @apply text-slate-900 dark:text-slate-100;
+  }
+  th {
+    @apply text-slate-700 dark:text-slate-100;
+  }
+}
+/* Hide number input spinners (Chrome/Safari/Edge/Opera + Firefox) */
+@layer utilities {
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .no-spinner[type='number'] {
+    -moz-appearance: textfield; /* Firefox */
+    appearance: textfield;      /* fallback */
+  }
+}
+@layer components {
+  /* Cards */
+  .card { @apply rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm; }
+  .card-header { @apply px-4 py-3 border-b bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-sm font-medium; }
+  .card-body { @apply p-4; }
+
+  /* Buttons */
+  .btn { @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm
+                 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-800
+                 focus-visible:outline-none focus-visible:ring-2 ring-slate-400/50 dark:ring-slate-500/40; }
+  .btn-primary { @apply bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 border-transparent; }
+  .btn-ghost { @apply border-transparent bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800; }
+
+  /* Inputs */
+  .input { @apply w-full border rounded-xl px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 dark:border-slate-700
+                  focus-visible:outline-none focus-visible:ring-2 ring-slate-400/50 dark:ring-slate-500/40; }
+  .select { @apply input; }
+  .textarea { @apply input; }
+
+  /* Table */
+  .table-head { @apply bg-slate-50 dark:bg-slate-800 sticky top-0 z-10; }
+  .table-row { @apply border-t border-slate-200 dark:border-slate-700; }
+
+  /* Badges */
+  .badge { @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700; }
+
+  /* Number inputs: hide spinners */
+  .no-spinner::-webkit-outer-spin-button, .no-spinner::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .no-spinner[type='number'] { -moz-appearance:textfield; appearance:textfield; }
+}
+@layer components {
+  .card { @apply rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 overflow-hidden; }
+}
+/* Smooth anchor scroll */
+html { scroll-behavior: smooth; }
+
+/* Subtle grid backdrop (works in dark+light; we mostly use on dark) */
+@layer utilities {
+  .bg-grid-slate\/5 {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+  }
+  .text-gradient {
+    background: linear-gradient(90deg, #a78bfa 0%, #22d3ee 50%, #34d399 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .glass {
+    @apply backdrop-blur-md bg-white/10 ring-1 ring-white/15 rounded-2xl;
+  }
+  .aurora {
+    background:
+      radial-gradient(40% 60% at 20% 30%, rgba(56,189,248,0.25), transparent 60%),
+      radial-gradient(50% 70% at 80% 20%, rgba(168,85,247,0.25), transparent 60%),
+      radial-gradient(60% 80% at 40% 80%, rgba(16,185,129,0.25), transparent 60%);
+    filter: blur(70px);
+  }
+}
