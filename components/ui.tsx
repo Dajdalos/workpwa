@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
-import { LogOut, Plus, EllipsisVertical } from 'lucide-react'
+import Image from 'next/image'
+import { Plus, EllipsisVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useT } from '@/lib/i18n'
 import LanguageSwitch from '@/components/LanguageSwitch'
@@ -23,13 +24,13 @@ export function Header({
   const t = useT()
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const headerRef = useRef<HTMLDivElement | null>(null) // <-- inserted
+  const headerRef = useRef<HTMLDivElement | null>(null)
 
-  // --- Added state for avatar and name ---
+  // Profile state
   const [avatar, setAvatar] = useState<string>('')
   const [name, setName] = useState<string>('')
 
-  // --- Fetch profile info on mount ---
+  // Fetch profile
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser()
@@ -47,6 +48,7 @@ export function Header({
     })()
   }, [])
 
+  // Outside click to close menu
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       const target = e.target as HTMLElement
@@ -56,6 +58,7 @@ export function Header({
     return () => document.removeEventListener('click', onDocClick)
   }, [])
 
+  // Expose header height via CSS var
   useEffect(() => {
     const el = headerRef.current
     if (!el) return
@@ -74,7 +77,10 @@ export function Header({
   }, [])
 
   return (
-    <div ref={headerRef} className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur dark:bg-slate-900/80 dark:border-slate-700">
+    <div
+      ref={headerRef}
+      className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur dark:bg-slate-900/80 dark:border-slate-700"
+    >
       <div className="max-w-6xl mx-auto px-4 py-3 grid grid-cols-[1fr_auto] gap-3 items-center">
         {/* Brand */}
         <div className="flex items-center gap-3">
@@ -97,12 +103,7 @@ export function Header({
         <div className="ml-auto flex items-center gap-2">
           {/* New tab (compact) */}
           {onAddTab && (
-            <button
-              onClick={onAddTab}
-              className="btn"
-              title={t('add_tab')}
-              aria-label={t('add_tab')}
-            >
+            <button onClick={onAddTab} className="btn" title={t('add_tab')} aria-label={t('add_tab')}>
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">{t('add_tab')}</span>
             </button>
@@ -112,7 +113,7 @@ export function Header({
           <LanguageSwitch />
           <ThemeToggle />
 
-          {/* More (backup lives here quietly) */}
+          {/* More (backup/restore) */}
           <div className="relative" data-more-menu>
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -130,18 +131,34 @@ export function Header({
                 className="absolute right-0 mt-1 w-56 rounded-xl border bg-white shadow-lg p-1
                            dark:bg-slate-900 dark:border-slate-700"
               >
-                <MenuItem onClick={() => { setMenuOpen(false); window.location.href = '/profile' }}>
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false)
+                    window.location.href = '/profile'
+                  }}
+                >
                   Profile
                 </MenuItem>
-                <MenuItem onClick={() => { setMenuOpen(false); onExport(); }}>
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onExport()
+                  }}
+                >
                   Backup (JSON)
                 </MenuItem>
-                <MenuItem onClick={() => { setMenuOpen(false); fileRef.current?.click(); }}>
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false)
+                    fileRef.current?.click()
+                  }}
+                >
                   Restore from file
                 </MenuItem>
               </div>
             )}
           </div>
+
           <input
             ref={fileRef}
             type="file"
@@ -155,10 +172,17 @@ export function Header({
           />
 
           {/* User pill + logout */}
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-sm dark:bg-slate-800 dark:text-slate-100">
-            <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-300">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-sm dark:bg-slate-8 00 dark:text-slate-100">
+            <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-300 relative">
               {avatar ? (
-                <img src={avatar} className="w-full h-full object-cover" />
+                <Image
+                  src={avatar}
+                  alt={name || userEmail || 'User avatar'}
+                  fill
+                  sizes="24px"
+                  className="object-cover"
+                  unoptimized
+                />
               ) : (
                 <div className="w-full h-full grid place-items-center text-xs">
                   {(name || userEmail || 'U')[0]}
@@ -167,6 +191,7 @@ export function Header({
             </div>
             <span className="hidden sm:inline">{name || userEmail}</span>
           </div>
+
           <button
             onClick={() => supabase.auth.signOut().then(() => (location.href = '/'))}
             className="btn btn-primary"
@@ -224,10 +249,15 @@ export function FileDropzone({
   onFiles: (files: File[]) => void
   icon: ReactNode
 }) {
-  const capture = accept?.includes('image') ? { capture: 'environment' as any } : {}
+  // React's InputHTMLAttributes supports `capture?: boolean | "user" | "environment"`
+  const captureProps: { capture?: boolean | 'user' | 'environment' } =
+    accept?.includes('image') ? { capture: 'environment' } : {}
+
   return (
-    <label className="rounded-2xl border-2 border-dashed p-6 text-center block
-                      bg-white dark:bg-slate-900 dark:border-slate-700">
+    <label
+      className="rounded-2xl border-2 border-dashed p-6 text-center block
+                      bg-white dark:bg-slate-900 dark:border-slate-700"
+    >
       <div className="flex flex-col items-center gap-2">
         <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800">{icon}</div>
         <div className="text-sm font-medium text-slate-800 dark:text-slate-100">{label}</div>
@@ -236,11 +266,11 @@ export function FileDropzone({
           type="file"
           accept={accept}
           multiple
-          {...capture}
+          {...captureProps}
           className="hidden"
           onChange={(e) => {
             const files = e.target.files ? Array.from(e.target.files) : []
-            if (files.length) onFiles(files as File[])
+            if (files.length) onFiles(files)
             ;(e.target as HTMLInputElement).value = ''
           }}
         />

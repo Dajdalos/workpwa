@@ -1,12 +1,13 @@
 'use client'
-import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 type Locale = 'en' | 'de' | 'hu' | 'sk'
+type Vars = Record<string, string | number | boolean | Date>
 
 type Ctx = {
   locale: Locale
   setLocale: (l: Locale) => void
-  t: (key: string, vars?: Record<string, any>) => string
+  t: (key: string, vars?: Vars) => string
 }
 
 const I18nCtx = createContext<Ctx>({
@@ -31,10 +32,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }
 
   const t = useMemo(() => {
-    return (key: string, vars?: Record<string, any>) => {
+    return (key: string, vars?: Vars) => {
       const dict = messages[locale] || messages.en
       const msg = dict[key] ?? messages.en[key] ?? key
-      return vars ? msg.replace(/\{(\w+)\}/g, (_, k) => String(vars?.[k] ?? '')) : msg
+      if (!vars) return msg
+      return msg.replace(/\{(\w+)\}/g, (_, k: string) => {
+        const v = vars[k]
+        if (v instanceof Date) return v.toString()
+        return String(v ?? '')
+      })
     }
   }, [locale])
 
@@ -83,6 +89,9 @@ const messages: Record<Locale, Record<string, string>> = {
     imported_tabs: 'Imported {count} tab(s).',
     choose_workspace_first: 'Choose a workspace first',
     default_role: 'Default',
+    unknown: 'Unknown',
+    deleting: 'Deleting…',
+
     // Columns / labels
     date: 'Date',
     hours: 'Hours',
@@ -101,6 +110,8 @@ const messages: Record<Locale, Record<string, string>> = {
     total: 'Total',
     total_hours: 'Total hours',
     total_amount: 'Total amount',
+    what_worked_on: 'What did you work on?',
+
     // Workspaces
     workspaces: 'Workspaces',
     workspace: 'Workspace',
@@ -108,9 +119,15 @@ const messages: Record<Locale, Record<string, string>> = {
     rename_workspace: 'Rename workspace',
     delete_workspace: 'Delete workspace',
     confirm_delete_workspace: 'Delete this workspace? This cannot be undone.',
+    delete_workspace_confirm: 'Delete this workspace? This cannot be undone.',
+    delete_workspace_help:
+      'Delete this workspace, its members, and all tabs. Files in storage will also be removed (best effort).',
     members: 'Members',
     invites: 'Invites',
     invite: 'Invite',
+    new_invite: 'New invite',
+    invite_member: 'Invite Member',
+    invite_manager: 'Invite Manager',
     invite_email_placeholder: 'teammate@email.com',
     send_invite: 'Send invite',
     pending_invites: 'Pending invites',
@@ -129,12 +146,25 @@ const messages: Record<Locale, Record<string, string>> = {
     leave_workspace_confirm: 'Leave this workspace?',
     assignee: 'Assignee',
     all_members: 'All members',
+    created_by: 'Created by',
+    used_by: 'Used by',
+    used_at: 'Used at {at}',
+    expires_at: 'Expires at {at}',
+    status_active: 'Active',
+    status_expired: 'Expired',
+    status_used: 'Used',
+    status_revoked: 'Revoked',
+    copy_link: 'Copy link',
+    invite_link_copied: 'Invite link copied to clipboard: {url}',
+
     // Presence / Chat
     online: 'Online',
     offline: 'Offline',
     chat: 'Chat',
     type_message: 'Type a message…',
     delete_message_confirm: 'Delete this message?',
+    you: 'You',
+
     // Landing
     hero_badge: 'New: Workspaces, roles & realtime chat',
     hero_title: 'Track hours. Prove work. Share flawlessly.',
@@ -147,13 +177,15 @@ const messages: Record<Locale, Record<string, string>> = {
     features_roles: 'Roles & rates',
     features_roles_desc: 'Professional hourly tracking with roles, rates, and automatic totals.',
     features_analytics: 'Analytics & chat',
-    features_analytics_desc: 'Insights at a glance plus realtime collaboration with presence.',
+    features_analytics_desc:
+      'Insights at a glance plus realtime collaboration with presence.',
     pricing: 'Pricing',
     pricing_free: 'Free',
     pricing_support: 'Support',
     pricing_thank_you: 'Helps keep the app alive for everyone',
     contact: 'Contact',
     contact_desc: 'Questions, feedback, or need help? Email us and we’ll get right back to you.',
+
     // Analytics (component)
     analytics: 'Analytics',
     by_role_breakdown: 'By role breakdown',
@@ -163,18 +195,9 @@ const messages: Record<Locale, Record<string, string>> = {
     amount: 'Amount',
     actions: 'Actions',
     danger_zone: 'Danger zone',
-    delete_workspace_help: 'Delete this workspace, its members, and all tabs. Files in storage will also be removed (best effort).',
-    new: 'New',
-    rename: 'Rename',
-    new_invite: 'New invite',
-    no_invites_yet: 'No invites yet.',
-    you: 'You',
-    own: 'Owner', // alias for legacy UI that prints "— own"
     amount_by_role: 'Amount by role',
     daily_entries: 'Daily entries',
     totals_autosave: 'Totals auto-saved',
-
-
   },
 
   /* ---------------- DE ---------------- */
@@ -201,6 +224,9 @@ const messages: Record<Locale, Record<string, string>> = {
     imported_tabs: '{count} Tab(s) importiert.',
     choose_workspace_first: 'Zuerst einen Arbeitsbereich wählen',
     default_role: 'Standard',
+    unknown: 'Unbekannt',
+    deleting: 'Wird gelöscht…',
+
     date: 'Datum',
     hours: 'Stunden',
     rate: 'Satz',
@@ -218,15 +244,25 @@ const messages: Record<Locale, Record<string, string>> = {
     total: 'Summe',
     total_hours: 'Gesamtstunden',
     total_amount: 'Gesamtbetrag',
+    what_worked_on: 'Woran gearbeitet?',
+
     workspaces: 'Arbeitsbereiche',
     workspace: 'Arbeitsbereich',
     new_workspace: 'Neuer Arbeitsbereich',
     rename_workspace: 'Arbeitsbereich umbenennen',
     delete_workspace: 'Arbeitsbereich löschen',
-    confirm_delete_workspace: 'Diesen Arbeitsbereich löschen? Dies kann nicht rückgängig gemacht werden.',
+    confirm_delete_workspace:
+      'Diesen Arbeitsbereich löschen? Dies kann nicht rückgängig gemacht werden.',
+    delete_workspace_confirm:
+      'Diesen Arbeitsbereich löschen? Dies kann nicht rückgängig gemacht werden.',
+    delete_workspace_help:
+      'Diesen Arbeitsbereich, seine Mitglieder und alle Tabs löschen. Dateien im Speicher werden ebenfalls entfernt (nach bestem Bemühen).',
     members: 'Mitglieder',
     invites: 'Einladungen',
     invite: 'Einladen',
+    new_invite: 'Neue Einladung',
+    invite_member: 'Mitglied einladen',
+    invite_manager: 'Manager einladen',
     invite_email_placeholder: 'teamkollege@email.de',
     send_invite: 'Einladung senden',
     pending_invites: 'Ausstehende Einladungen',
@@ -240,16 +276,30 @@ const messages: Record<Locale, Record<string, string>> = {
     demote: 'Degradieren',
     promote_to_manager: 'Zum Manager befördern',
     demote_to_member: 'Zum Mitglied degradieren',
-    delete_tab_not_allowed: 'Nur der Inhaber oder die zugewiesene Person kann diesen Tab löschen.',
+    delete_tab_not_allowed:
+      'Nur der Inhaber oder die zugewiesene Person kann diesen Tab löschen.',
     leave_workspace: 'Arbeitsbereich verlassen',
     leave_workspace_confirm: 'Diesen Arbeitsbereich verlassen?',
     assignee: 'Zugewiesen',
     all_members: 'Alle Mitglieder',
+    created_by: 'Erstellt von',
+    used_by: 'Verwendet von',
+    used_at: 'Verwendet am {at}',
+    expires_at: 'Läuft ab am {at}',
+    status_active: 'Aktiv',
+    status_expired: 'Abgelaufen',
+    status_used: 'Verwendet',
+    status_revoked: 'Widerrufen',
+    copy_link: 'Link kopieren',
+    invite_link_copied: 'Einladungslink in die Zwischenablage kopiert: {url}',
+
     online: 'Online',
     offline: 'Offline',
     chat: 'Chat',
     type_message: 'Nachricht eingeben…',
     delete_message_confirm: 'Diese Nachricht löschen?',
+    you: 'Sie',
+
     hero_badge: 'Neu: Arbeitsbereiche, Rollen & Echtzeit-Chat',
     hero_title: 'Arbeitsstunden verfolgen. Arbeit nachweisen. Nahtlos teilen.',
     hero_desc:
@@ -257,17 +307,22 @@ const messages: Record<Locale, Record<string, string>> = {
     get_started: 'Loslegen',
     see_pricing: 'Preise ansehen',
     features_photo: 'Fotobeweis & Multi-PDF',
-    features_photo_desc: 'Bilder und mehrere Rechnungen pro Monat anhängen. Alles an einem Ort.',
+    features_photo_desc:
+      'Bilder und mehrere Rechnungen pro Monat anhängen. Alles an einem Ort.',
     features_roles: 'Rollen & Sätze',
-    features_roles_desc: 'Professionelle Zeiterfassung mit Rollen, Sätzen und automatischen Summen.',
+    features_roles_desc:
+      'Professionelle Zeiterfassung mit Rollen, Sätzen und automatischen Summen.',
     features_analytics: 'Analysen & Chat',
-    features_analytics_desc: 'Einblicke auf einen Blick plus Zusammenarbeit in Echtzeit.',
+    features_analytics_desc:
+      'Einblicke auf einen Blick plus Zusammenarbeit in Echtzeit.',
     pricing: 'Preise',
     pricing_free: 'Kostenlos',
     pricing_support: 'Support',
     pricing_thank_you: 'Hilft, die App für alle am Leben zu erhalten',
     contact: 'Kontakt',
-    contact_desc: 'Fragen, Feedback oder Hilfe benötigt? Schreiben Sie uns eine E-Mail.',
+    contact_desc:
+      'Fragen, Feedback oder Hilfe benötigt? Schreiben Sie uns eine E-Mail.',
+
     analytics: 'Analysen',
     by_role_breakdown: 'Aufschlüsselung nach Rolle',
     hours_by_day: 'Stunden nach Tag',
@@ -276,18 +331,9 @@ const messages: Record<Locale, Record<string, string>> = {
     amount: 'Betrag',
     actions: 'Aktionen',
     danger_zone: 'Gefahrenbereich',
-    delete_workspace_help: 'Diesen Arbeitsbereich, seine Mitglieder und alle Tabs löschen. Dateien im Speicher werden ebenfalls entfernt (nach bestem Bemühen).',
-    new: 'Neu',
-    rename: 'Umbenennen',
-    new_invite: 'Neue Einladung',
-    no_invites_yet: 'Noch keine Einladungen.',
-    you: 'Sie',
-    own: 'Inhaber',
     amount_by_role: 'Betrag nach Rolle',
     daily_entries: 'Tägliche Einträge',
     totals_autosave: 'Summen automatisch gespeichert',
-
-
   },
 
   /* ---------------- HU ---------------- */
@@ -314,6 +360,9 @@ const messages: Record<Locale, Record<string, string>> = {
     imported_tabs: '{count} fül importálva.',
     choose_workspace_first: 'Először válasszon munkaterületet',
     default_role: 'Alapértelmezett',
+    unknown: 'Ismeretlen',
+    deleting: 'Törlés…',
+
     date: 'Dátum',
     hours: 'Órák',
     rate: 'Díj',
@@ -331,15 +380,25 @@ const messages: Record<Locale, Record<string, string>> = {
     total: 'Összesen',
     total_hours: 'Összes óra',
     total_amount: 'Végösszeg',
+    what_worked_on: 'Min dolgozott?',
+
     workspaces: 'Munkaterületek',
     workspace: 'Munkaterület',
     new_workspace: 'Új munkaterület',
     rename_workspace: 'Munkaterület átnevezése',
     delete_workspace: 'Munkaterület törlése',
-    confirm_delete_workspace: 'Törli ezt a munkaterületet? Ez nem vonható vissza.',
+    confirm_delete_workspace:
+      'Törli ezt a munkaterületet? Ez nem vonható vissza.',
+    delete_workspace_confirm:
+      'Törli ezt a munkaterületet? Ez nem vonható vissza.',
+    delete_workspace_help:
+      'Törli ezt a munkaterületet, tagjait és az összes fület. A tárhelyen lévő fájlok is törlődnek (lehetőségekhez mérten).',
     members: 'Tagok',
     invites: 'Meghívók',
     invite: 'Meghívás',
+    new_invite: 'Új meghívó',
+    invite_member: 'Tag meghívása',
+    invite_manager: 'Menedzser meghívása',
     invite_email_placeholder: 'csapattars@email.hu',
     send_invite: 'Meghívó küldése',
     pending_invites: 'Függő meghívók',
@@ -353,16 +412,30 @@ const messages: Record<Locale, Record<string, string>> = {
     demote: 'Lefokozás',
     promote_to_manager: 'Előléptetés menedzserré',
     demote_to_member: 'Lefokozás taggá',
-    delete_tab_not_allowed: 'Csak a tulajdonos vagy a hozzárendelt személy törölheti ezt a fület.',
+    delete_tab_not_allowed:
+      'Csak a tulajdonos vagy a hozzárendelt személy törölheti ezt a fület.',
     leave_workspace: 'Munkaterület elhagyása',
     leave_workspace_confirm: 'Elhagyja ezt a munkaterületet?',
     assignee: 'Hozzárendelt',
     all_members: 'Minden tag',
+    created_by: 'Létrehozta',
+    used_by: 'Felhasználta',
+    used_at: 'Felhasználva ekkor: {at}',
+    expires_at: 'Lejár ekkor: {at}',
+    status_active: 'Aktív',
+    status_expired: 'Lejárt',
+    status_used: 'Felhasználva',
+    status_revoked: 'Visszavonva',
+    copy_link: 'Hivatkozás másolása',
+    invite_link_copied: 'Meghívó linkje a vágólapra másolva: {url}',
+
     online: 'Online',
     offline: 'Offline',
     chat: 'Chat',
     type_message: 'Írjon üzenetet…',
     delete_message_confirm: 'Törli ezt az üzenetet?',
+    you: 'Ön',
+
     hero_badge: 'Új: Munkaterületek, szerepek és valós idejű chat',
     hero_title: 'Munkaórák követése. Munka igazolása. Zökkenőmentes megosztás.',
     hero_desc:
@@ -370,18 +443,21 @@ const messages: Record<Locale, Record<string, string>> = {
     get_started: 'Kezdés',
     see_pricing: 'Árak megtekintése',
     features_photo: 'Fényképes igazolás & több PDF',
-    features_photo_desc: 'Képek és több számla csatolása havonta. Minden egy helyen.',
+    features_photo_desc:
+      'Képek és több számla csatolása havonta. Minden egy helyen.',
     features_roles: 'Szerepek és díjak',
     features_roles_desc:
       'Professzionális órakövetés szerepekkel, díjakkal és automatikus összesítéssel.',
     features_analytics: 'Analitika & chat',
-    features_analytics_desc: 'Áttekintés egy pillantással és valós idejű együttműködés jelenléttel.',
+    features_analytics_desc:
+      'Áttekintés egy pillantással és valós idejű együttműködés jelenléttel.',
     pricing: 'Árak',
     pricing_free: 'Ingyenes',
     pricing_support: 'Támogatás',
     pricing_thank_you: 'Segít életben tartani az alkalmazást mindenkinek',
     contact: 'Kapcsolat',
     contact_desc: 'Kérdése, visszajelzése van vagy segítség kell? Írjon nekünk e-mailt!',
+
     analytics: 'Analitika',
     by_role_breakdown: 'Szerepenkénti bontás',
     hours_by_day: 'Órák naponta',
@@ -390,19 +466,9 @@ const messages: Record<Locale, Record<string, string>> = {
     amount: 'Összeg',
     actions: 'Műveletek',
     danger_zone: 'Veszélyzóna',
-    delete_workspace_help: 'Törli ezt a munkaterületet, tagjait és az összes fület. A tárhelyen lévő fájlok is törlődnek (lehetőségekhez mérten).',
-    new: 'Új',
-    rename: 'Átnevezés',
-    new_invite: 'Új meghívó',
-    no_invites_yet: 'Még nincsenek meghívók.',
-    you: 'Ön',
-    own: 'Tulajdonos',
     amount_by_role: 'Összeg szerepenként',
     daily_entries: 'Napi bejegyzések',
     totals_autosave: 'Összesítések automatikusan mentve',
-    
-
-
   },
 
   /* ---------------- SK ---------------- */
@@ -429,6 +495,9 @@ const messages: Record<Locale, Record<string, string>> = {
     imported_tabs: 'Importovaných {count} kariet.',
     choose_workspace_first: 'Najprv vyberte pracovný priestor',
     default_role: 'Predvolená',
+    unknown: 'Neznáme',
+    deleting: 'Odstraňuje sa…',
+
     date: 'Dátum',
     hours: 'Hodiny',
     rate: 'Sadzba',
@@ -446,15 +515,25 @@ const messages: Record<Locale, Record<string, string>> = {
     total: 'Spolu',
     total_hours: 'Spolu hodín',
     total_amount: 'Celková suma',
+    what_worked_on: 'Na čom ste pracovali?',
+
     workspaces: 'Pracovné priestory',
     workspace: 'Pracovný priestor',
     new_workspace: 'Nový pracovný priestor',
     rename_workspace: 'Premenovať pracovný priestor',
     delete_workspace: 'Odstrániť pracovný priestor',
-    confirm_delete_workspace: 'Odstrániť tento pracovný priestor? Toto sa nedá vrátiť späť.',
+    confirm_delete_workspace:
+      'Odstrániť tento pracovný priestor? Toto sa nedá vrátiť späť.',
+    delete_workspace_confirm:
+      'Odstrániť tento pracovný priestor? Toto sa nedá vrátiť späť.',
+    delete_workspace_help:
+      'Odstrániť tento pracovný priestor, jeho členov a všetky karty. Súbory v úložisku budú tiež odstránené (podľa možností).',
     members: 'Členovia',
     invites: 'Pozvánky',
     invite: 'Pozvať',
+    new_invite: 'Nová pozvánka',
+    invite_member: 'Pozvať člena',
+    invite_manager: 'Pozvať manažéra',
     invite_email_placeholder: 'kolega@email.sk',
     send_invite: 'Poslať pozvánku',
     pending_invites: 'Čakajúce pozvánky',
@@ -468,16 +547,30 @@ const messages: Record<Locale, Record<string, string>> = {
     demote: 'Znížiť',
     promote_to_manager: 'Povýšiť na manažéra',
     demote_to_member: 'Znížiť na člena',
-    delete_tab_not_allowed: 'Kartu môže odstrániť iba vlastník alebo pridelená osoba.',
+    delete_tab_not_allowed:
+      'Kartu môže odstrániť iba vlastník alebo pridelená osoba.',
     leave_workspace: 'Opustiť pracovný priestor',
     leave_workspace_confirm: 'Opustiť tento pracovný priestor?',
     assignee: 'Pridelený',
     all_members: 'Všetci členovia',
+    created_by: 'Vytvoril',
+    used_by: 'Použil',
+    used_at: 'Použité {at}',
+    expires_at: 'Platnosť do {at}',
+    status_active: 'Aktívne',
+    status_expired: 'Platnosť vypršala',
+    status_used: 'Použité',
+    status_revoked: 'Zrušené',
+    copy_link: 'Skopírovať odkaz',
+    invite_link_copied: 'Odkaz na pozvánku bol skopírovaný: {url}',
+
     online: 'Online',
     offline: 'Offline',
     chat: 'Chat',
     type_message: 'Napíšte správu…',
     delete_message_confirm: 'Odstrániť túto správu?',
+    you: 'Vy',
+
     hero_badge: 'Nové: Pracovné priestory, roly a chat v reálnom čase',
     hero_title: 'Sledujte hodiny. Dokážte prácu. Zdieľajte bez problémov.',
     hero_desc:
@@ -485,17 +578,22 @@ const messages: Record<Locale, Record<string, string>> = {
     get_started: 'Začať',
     see_pricing: 'Zobraziť ceny',
     features_photo: 'Fotodôkaz & viac PDF',
-    features_photo_desc: 'Priložte obrázky a viac faktúr mesačne. Všetko na jednom mieste.',
+    features_photo_desc:
+      'Priložte obrázky a viac faktúr mesačne. Všetko na jednom mieste.',
     features_roles: 'Roly a sadzby',
-    features_roles_desc: 'Profesionálne sledovanie hodín s rolami, sadzbami a automatickými súčtami.',
+    features_roles_desc:
+      'Profesionálne sledovanie hodín s rolami, sadzbami a automatickými súčtami.',
     features_analytics: 'Analytika & chat',
-    features_analytics_desc: 'Prehľad na prvý pohľad a spolupráca v reálnom čase.',
+    features_analytics_desc:
+      'Prehľad na prvý pohľad a spolupráca v reálnom čase.',
     pricing: 'Cenník',
     pricing_free: 'Zadarmo',
     pricing_support: 'Podpora',
     pricing_thank_you: 'Pomáha udržať aplikáciu pri živote pre všetkých',
     contact: 'Kontakt',
-    contact_desc: 'Otázky alebo pomoc? Napíšte nám e-mail.',
+    contact_desc:
+      'Otázky alebo pomoc? Napíšte nám e-mail.',
+
     analytics: 'Analytika',
     by_role_breakdown: 'Rozpis podľa rolí',
     hours_by_day: 'Hodiny podľa dňa',
@@ -504,17 +602,8 @@ const messages: Record<Locale, Record<string, string>> = {
     amount: 'Suma',
     actions: 'Akcie',
     danger_zone: 'Nebezpečná zóna',
-    delete_workspace_help: 'Odstrániť tento pracovný priestor, jeho členov a všetky karty. Súbory v úložisku budú tiež odstránené (podľa možností).',
-    new: 'Nové',
-    rename: 'Premenovať',
-    new_invite: 'Nová pozvánka',
-    no_invites_yet: 'Zatiaľ žiadne pozvánky.',
-    you: 'Vy',
-    own: 'Vlastník',
     amount_by_role: 'Suma podľa roly',
     daily_entries: 'Denné záznamy',
     totals_autosave: 'Súčty boli automaticky uložené',
-
-
   },
 }

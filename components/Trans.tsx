@@ -1,9 +1,28 @@
 'use client'
+import type { ElementType, ComponentPropsWithoutRef } from 'react'
 import { useT } from '@/lib/i18n'
 
-export default function Trans({
-  k, vars, as: Tag = 'span', className,
-}: { k: string; vars?: Record<string, any>; as?: any; className?: string }) {
+type Vars = Record<string, string | number>
+
+type TransProps<T extends ElementType = 'span'> = {
+  k: string
+  vars?: Vars
+  as?: T
+  className?: string
+} & Omit<ComponentPropsWithoutRef<T>, 'as' | 'children'>
+
+export default function Trans<T extends ElementType = 'span'>({
+  k,
+  vars,
+  as,
+  className,
+  ...rest
+}: TransProps<T>) {
   const t = useT()
-  return <Tag className={className}>{t(k, vars)}</Tag>
+  const Tag = (as ?? 'span') as ElementType
+  return (
+    <Tag className={className} {...rest}>
+      {t(k, vars)}
+    </Tag>
+  )
 }

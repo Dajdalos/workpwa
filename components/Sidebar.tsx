@@ -12,7 +12,6 @@ export default function Sidebar({
   onAdd,
   onDelete,
   myRole,
-  currentUserId,
 }: {
   tabs: Tab[]
   currentId?: string
@@ -20,7 +19,6 @@ export default function Sidebar({
   onAdd: () => void | Promise<void>
   onDelete: (id: string) => void | Promise<void>
   myRole: 'owner' | 'manager' | 'member' | 'unknown'
-  currentUserId: string
 }) {
   const t = useT()
   const filtered = tabs
@@ -33,7 +31,7 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="w-72 shrink-0 lg:sticky lg:top-[var(--header-h,64px)] lg:self-start">
+    <aside className="w-72 shrink-0 lg:sticky lg:top=[var(--header-h,64px)] lg:self-start">
       {/* overflow-hidden keeps inner content clipped to rounded corners */}
       <div className="rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 overflow-hidden">
         <div className="px-3 py-3 border-b text-sm font-medium bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
@@ -59,9 +57,10 @@ export default function Sidebar({
                       onClick={() => onSelect(tab.id)}
                       onKeyDown={(e) => handleRowKeyDown(e, tab.id)}
                       className={`w-full group text-left px-3 py-2 rounded-lg border flex items-center gap-2 outline-none
-                        ${active
-                          ? 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-600'
-                          : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:hover:bg-slate-800'
+                        ${
+                          active
+                            ? 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-600'
+                            : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:hover:bg-slate-800'
                         }`}
                     >
                       <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -69,7 +68,10 @@ export default function Sidebar({
 
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); onDelete(tab.id) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(tab.id)
+                        }}
                         className="p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/20"
                         title={t('delete')}
                         aria-label={t('delete')}

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import type { EntryRow, Role, Tab } from '@/lib/types'
 import HoursTable from '@/components/HoursTable'
 import RolesCard from '@/components/RolesCard'
@@ -45,7 +46,9 @@ export default function TabEditor({
     if (prevTabId.current !== tab.id) {
       setName(tab.name || '')
       setEntries(Array.isArray(tab.entries) ? tab.entries : [])
-      setRoles(tab.roles?.length ? tab.roles : [{ id: crypto.randomUUID(), name: t('default_role'), rate: 0 }])
+      setRoles(
+        tab.roles?.length ? tab.roles : [{ id: crypto.randomUUID(), name: t('default_role'), rate: 0 }]
+      )
       setInvoice(tab.invoice || '')
       setNotes(tab.notes || '')
       prevTabId.current = tab.id
@@ -97,9 +100,25 @@ export default function TabEditor({
           {imageItems.length > 0 && (
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {imageItems.map((it) => (
-                <div key={it.id} className="relative group rounded-xl overflow-hidden border dark:border-slate-700">
-                  <a href={it.url} target="_blank" className="block" rel="noreferrer">
-                    <img src={it.url} alt={it.name} className="w-full h-36 object-cover" />
+                <div
+                  key={it.id}
+                  className="relative group rounded-xl overflow-hidden border dark:border-slate-700"
+                >
+                  <a
+                    href={it.url}
+                    target="_blank"
+                    className="block relative h-36"
+                    rel="noreferrer"
+                    title={it.name}
+                  >
+                    <Image
+                      src={it.url}
+                      alt={it.name || 'image'}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 33vw"
+                      className="object-cover"
+                      unoptimized
+                    />
                   </a>
                   <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
                     <a
@@ -167,11 +186,7 @@ export default function TabEditor({
                   </div>
                   {/* small preview pane */}
                   <div className="h-48 bg-white dark:bg-slate-900">
-                    <iframe
-                      src={it.url}
-                      className="w-full h-full"
-                      title={it.name}
-                    />
+                    <iframe src={it.url} className="w-full h-full" title={it.name} />
                   </div>
                 </li>
               ))}

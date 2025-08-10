@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabaseClient'
 import {
   UserPlus, ChevronDown, Copy, X, Trash2, Users2,
   Crown, Briefcase, User as UserIcon, Power, LogOut
 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
+
+type Role = 'owner' | 'manager' | 'member' | 'unknown'
 
 type Invite = {
   token: string
@@ -29,6 +32,27 @@ type MemberRow = {
   profiles: { display_name: string | null; avatar_url: string | null } | null
 }
 
+function isObject(x: unknown): x is Record<string, unknown> {
+  return !!x && typeof x === 'object'
+}
+function normalizeRole(input: unknown): Role {
+  return input === 'owner' || input === 'manager' || input === 'member' ? input : 'unknown'
+}
+function coerceProfile(
+  input: unknown
+): { display_name: string | null; avatar_url: string | null } | null {
+  if (Array.isArray(input)) return coerceProfile(input[0])
+  if (!isObject(input)) return null
+  const dn = input.display_name
+  const au = input.avatar_url
+  return {
+    display_name: typeof dn === 'string' || dn === null ? (dn ?? null) : null,
+    avatar_url: typeof au === 'string' || au === null ? (au ?? null) : null,
+  }
+}
+const isRoleStrict = (v: string): v is Exclude<Role, 'unknown'> =>
+  (['owner', 'manager', 'member'] as const).includes(v as Exclude<Role, 'unknown'>)
+
 export default function WorkspaceAdmin({
   workspaceId,
   currentUserId,
@@ -44,11 +68,17 @@ export default function WorkspaceAdmin({
   const [members, setMembers] = useState<MemberRow[]>([])
   const [roleMenuOpen, setRoleMenuOpen] = useState(false)
   const [busyDelete, setBusyDelete] = useState(false)
-  const [myRole, setMyRole] = useState<'owner'|'manager'|'member'|'unknown'>('unknown')
+  const [myRole, setMyRole] = useState<Role>('unknown')
   const [presenceKeys, setPresenceKeys] = useState<Set<string>>(new Set())
 
-  useEffect(() => { if (workspaceId) refreshAll() }, [workspaceId])
+  const refreshAll = useCallback(async () => {
+    await Promise.all([refreshMembers(), refreshInvites(), loadMyRole()])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, currentUserId])
 
+  useEffect(() => { if (workspaceId) refreshAll() }, [workspaceId, refreshAll])
+
+  // Presence
   useEffect(() => {
     if (!workspaceId || !currentUserId) return
     const channel = supabase.channel(`presence:${workspaceId}`, {
@@ -56,7 +86,7 @@ export default function WorkspaceAdmin({
     })
 
     channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState() as Record<string, Array<any>>
+      const state = channel.presenceState() as Record<string, unknown[]>
       setPresenceKeys(new Set(Object.keys(state)))
     })
 
@@ -69,10 +99,6 @@ export default function WorkspaceAdmin({
     return () => { supabase.removeChannel(channel) }
   }, [workspaceId, currentUserId])
 
-  async function refreshAll() {
-    await Promise.all([refreshMembers(), refreshInvites(), loadMyRole()])
-  }
-
   async function loadMyRole() {
     const { data } = await supabase
       .from('workspace_members')
@@ -80,7 +106,7 @@ export default function WorkspaceAdmin({
       .eq('workspace_id', workspaceId)
       .eq('user_id', currentUserId)
       .maybeSingle()
-    if (data?.role) setMyRole(data.role as any)
+    setMyRole(normalizeRole(data?.role))
   }
 
   async function refreshMembers() {
@@ -89,7 +115,31 @@ export default function WorkspaceAdmin({
       .select('user_id, role, created_at, profiles(display_name,avatar_url)')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: true })
-    if (!error && data) setMembers(data as any)
+
+    if (error || !Array.isArray(data)) return
+
+    type RawMember = {
+      user_id?: unknown
+      role?: unknown
+      created_at?: unknown
+      profiles?: unknown
+    }
+
+    const next: MemberRow[] = []
+    for (const r of data as unknown as RawMember[]) {
+      if (!isObject(r)) continue
+      const uid = typeof r.user_id === 'string' ? r.user_id : null
+      const role = normalizeRole(r.role)
+      const created_at = typeof r.created_at === 'string' ? r.created_at : ''
+      if (!uid || role === 'unknown') continue
+      next.push({
+        user_id: uid,
+        role,
+        created_at,
+        profiles: coerceProfile(r.profiles),
+      })
+    }
+    setMembers(next)
   }
 
   async function refreshInvites() {
@@ -102,15 +152,53 @@ export default function WorkspaceAdmin({
       `)
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
-    if (!error && data) setInvites(data as any)
+
+    if (error || !Array.isArray(data)) return
+
+    type RawInvite = {
+      token?: unknown
+      workspace_id?: unknown
+      role?: unknown
+      created_by?: unknown
+      expires_at?: unknown
+      used_by?: unknown
+      used_at?: unknown
+      revoked?: unknown
+      created_at?: unknown
+      created?: unknown
+      used?: unknown
+    }
+
+    const next: Invite[] = []
+    for (const r of data as unknown as RawInvite[]) {
+      if (!isObject(r)) continue
+      const token = typeof r.token === 'string' ? r.token : null
+      const role = r.role === 'manager' || r.role === 'member' ? r.role : null
+      const workspace_id = typeof r.workspace_id === 'string' ? r.workspace_id : null
+      if (!token || !role || !workspace_id) continue
+      next.push({
+        token,
+        workspace_id,
+        role,
+        created_by: typeof r.created_by === 'string' ? r.created_by : null,
+        expires_at: typeof r.expires_at === 'string' ? r.expires_at : null,
+        used_by: typeof r.used_by === 'string' ? r.used_by : null,
+        used_at: typeof r.used_at === 'string' ? r.used_at : null,
+        revoked: !!r.revoked,
+        created_at: typeof r.created_at === 'string' ? r.created_at : new Date().toISOString(),
+        created: coerceProfile(r.created),
+        used: coerceProfile(r.used),
+      })
+    }
+    setInvites(next)
   }
 
   const isOwner = myRole === 'owner'
   const isAdmin = myRole === 'owner' || myRole === 'manager'
 
   // Role changes – owner only
-  async function changeRole(userId: string, nextRole: 'owner'|'manager'|'member') {
-    if (!isOwner) return alert(t('only_owners_change_roles'))
+  async function changeRole(userId: string, nextRole: Exclude<Role, 'unknown'>) {
+    if (!isOwner) return alert(t('only_owners_change_roles') || 'Only owners can change roles.')
     const { error } = await supabase.rpc('set_member_role', {
       p_workspace_id: workspaceId, p_user_id: userId, p_role: nextRole
     })
@@ -120,8 +208,8 @@ export default function WorkspaceAdmin({
 
   // Remove member – owner only
   async function removeMember(userId: string) {
-    if (!isOwner) return alert(t('only_owners_remove_members'))
-    if (!confirm(t('confirm_remove_member'))) return
+    if (!isOwner) return alert(t('only_owners_remove_members') || 'Only owners can remove members.')
+    if (!confirm(t('confirm_remove_member') || 'Remove this member?')) return
     const { error } = await supabase.rpc('remove_member', {
       p_workspace_id: workspaceId, p_user_id: userId
     })
@@ -138,13 +226,35 @@ export default function WorkspaceAdmin({
     window.location.href = '/dashboard'
   }
 
+  // Delete workspace (owner)
+  async function deleteWorkspace() {
+    if (!isOwner) return alert(t('only_owners_remove_members') || 'Only owners can delete the workspace.')
+    if (!confirm(t('delete_workspace_confirm') || 'Delete this workspace? This cannot be undone.')) return
+    setBusyDelete(true)
+    try {
+      const rpc = await supabase.rpc('delete_workspace', { p_workspace_id: workspaceId })
+      if (rpc.error) {
+        const del = await supabase.from('workspaces').delete().eq('id', workspaceId)
+        if (del.error) throw del.error
+      }
+      localStorage.removeItem('ws')
+      onDeleted?.()
+      window.location.href = '/dashboard'
+    } catch (err) {
+      const msg = isObject(err) && typeof err.message === 'string' ? err.message : 'Failed to delete'
+      alert(msg)
+    } finally {
+      setBusyDelete(false)
+    }
+  }
+
   // Invites
   async function createInvite(role: 'member' | 'manager') {
     const { data, error } = await supabase.rpc('create_workspace_invite', {
       p_workspace_id: workspaceId, p_role: role, p_expires_minutes: 60 * 24 * 3
     })
     if (error) return alert(error.message)
-    const token = data as string
+    const token = String(data)
     const url = `${window.location.origin}/join/${token}`
     await navigator.clipboard.writeText(url).catch(() => {})
     alert(t('invite_link_copied', { url }))
@@ -162,7 +272,11 @@ export default function WorkspaceAdmin({
   }
 
   async function removeInvite(token: string) {
-    const { error } = await supabase.from('workspace_invites').delete().eq('token', token).eq('workspace_id', workspaceId)
+    const { error } = await supabase
+      .from('workspace_invites')
+      .delete()
+      .eq('token', token)
+      .eq('workspace_id', workspaceId)
     if (error) return alert(error.message)
     await refreshInvites()
   }
@@ -201,7 +315,14 @@ export default function WorkspaceAdmin({
                   <div className="min-w-0 flex items-center gap-3 overflow-hidden">
                     <div className="relative w-9 h-9 rounded-full overflow-hidden border dark:border-slate-700 bg-slate-200 shrink-0">
                       {m.avatar ? (
-                        <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" />
+                        <Image
+                          src={m.avatar}
+                          alt={m.name}
+                          fill
+                          sizes="36px"
+                          className="object-cover"
+                          unoptimized
+                        />
                       ) : (
                         <div className="w-full h-full grid place-items-center text-slate-600">{m.name[0]}</div>
                       )}
@@ -228,7 +349,10 @@ export default function WorkspaceAdmin({
                           <select
                             className="input w-32"
                             value={m.role}
-                            onChange={(e) => changeRole(m.user_id, e.target.value as any)}
+                            onChange={(e) => {
+                              const v = e.target.value
+                              if (isRoleStrict(v)) changeRole(m.user_id, v)
+                            }}
                             title={t('change_role')}
                           >
                             <option value="owner">{t('owner')}</option>
@@ -289,8 +413,12 @@ export default function WorkspaceAdmin({
                   className="absolute right-0 mt-1 w-44 rounded-xl border bg-white p-1
                              dark:bg-slate-900 dark:border-slate-700 shadow"
                 >
-                  <MenuItem onClick={() => createInvite('member')}>{t('invite_member') || 'Invite Member'}</MenuItem>
-                  <MenuItem onClick={() => createInvite('manager')}>{t('invite_manager') || 'Invite Manager'}</MenuItem>
+                  <MenuItem onClick={() => createInvite('member')}>
+                    {t('invite_member') || 'Invite Member'}
+                  </MenuItem>
+                  <MenuItem onClick={() => createInvite('manager')}>
+                    {t('invite_manager') || 'Invite Manager'}
+                  </MenuItem>
                 </div>
               )}
             </div>
@@ -303,7 +431,7 @@ export default function WorkspaceAdmin({
           ) : (
             <ul className="space-y-2">
               {invites.map((i) => {
-                const statusKey = inviteStatus(i) // 'active' | 'expired' | 'used' | 'revoked'
+                const statusKey = inviteStatus(i)
                 const statusLabel =
                   statusKey === 'active' ? (t('status_active') || 'Active')
                   : statusKey === 'expired' ? (t('status_expired') || 'Expired')
@@ -343,7 +471,11 @@ export default function WorkspaceAdmin({
                         </div>
                       </div>
                       <div className="flex items-center gap-2 justify-end">
-                        <button className="btn" onClick={async () => { await navigator.clipboard.writeText(joinUrl).catch(()=>{}); }} title={t('copy_link')}>
+                        <button
+                          className="btn"
+                          onClick={async () => { await navigator.clipboard.writeText(joinUrl).catch(()=>{}); }}
+                          title={t('copy_link')}
+                        >
                           <Copy className="w-4 h-4" />
                         </button>
                         <button className="btn" onClick={() => window.open(joinUrl, '_blank')} title={t('open')}>
@@ -374,7 +506,7 @@ export default function WorkspaceAdmin({
             </div>
             <button
               className="btn btn-primary"
-              onClick={leaveWorkspace}
+              onClick={deleteWorkspace}
               disabled={busyDelete}
               title={t('delete_workspace')}
             >
@@ -450,11 +582,24 @@ function RoleGroup({
 function AvatarMini({ name, url }: { name?: string | null; url?: string | null }) {
   const t = useT()
   const label = name || ''
+  const initial = (label || t('unknown') || 'U')[0]
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="w-5 h-5 rounded-full overflow-hidden bg-slate-300">
-        {url ? <img src={url} alt={label} className="w-full h-full object-cover" /> :
-          <span className="w-full h-full grid place-items-center text-[10px] text-slate-700">{(label || t('unknown') || 'U')[0]}</span>}
+      <span className="w-5 h-5 rounded-full overflow-hidden bg-slate-300 relative">
+        {url ? (
+          <Image
+            src={url}
+            alt={label || 'avatar'}
+            fill
+            sizes="20px"
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <span className="w-full h-full grid place-items-center text-[10px] text-slate-700">
+            {initial}
+          </span>
+        )}
       </span>
       <span className="text-xs">{label || (t('unknown') || 'Unknown')}</span>
     </span>

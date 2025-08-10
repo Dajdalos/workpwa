@@ -16,13 +16,15 @@ function monthLabel(d = new Date()) {
   return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 }
 
+type Role = 'owner' | 'manager' | 'member' | 'unknown'
+
 export default function Dashboard() {
   const router = useRouter()
   const t = useT()
 
   const [userEmail, setUserEmail] = useState('')
-  const [userId, setUserId] = useState<string>('')
-  const [workspaceId, setWorkspaceId] = useState<string>('')
+  const [userId, setUserId] = useState<string>('') // empty until authed
+  const [workspaceId, setWorkspaceId] = useState<string>('') // empty until chosen
 
   const [tabs, setTabs] = useState<Tab[]>([])
   const [currentId, setCurrentId] = useState<string | undefined>()
@@ -31,7 +33,7 @@ export default function Dashboard() {
   const [search, setSearch] = useState('')
 
   // Role / filters
-  const [myRole, setMyRole] = useState<'owner' | 'manager' | 'member' | 'unknown'>('unknown')
+  const [myRole, setMyRole] = useState<Role>('unknown')
   const [assignee, setAssignee] = useState<string>('') // '' = All
 
   // -------- Auth boot --------
@@ -61,7 +63,14 @@ export default function Dashboard() {
         .eq('workspace_id', workspaceId)
         .eq('user_id', userId)
         .maybeSingle()
-      if (!error && data?.role) setMyRole(data.role as any)
+      if (!error) {
+        const role = data?.role
+        if (role === 'owner' || role === 'manager' || role === 'member') {
+          setMyRole(role)
+        } else {
+          setMyRole('unknown')
+        }
+      }
     })()
   }, [workspaceId, userId])
 
@@ -92,9 +101,9 @@ export default function Dashboard() {
       console.error(error)
       return
     }
-    const list = (data as any) || []
+    const list = (data ?? []) as Tab[]
     setTabs(list)
-    setCurrentId((prev) => (prev && list.some((t: any) => t.id === prev) ? prev : list?.[0]?.id))
+    setCurrentId((prev) => (prev && list.some((t: Tab) => t.id === prev) ? prev : list?.[0]?.id))
   }, [workspaceId, assignee])
 
   // refresh when workspace or assignee changes
@@ -131,9 +140,11 @@ export default function Dashboard() {
       })
       .select('*')
       .single()
-    if (error) return alert(error.message)
-    setTabs((prev) => [...prev, data as any])
-    setCurrentId((data as any).id)
+
+    if (error || !data) return alert(error?.message ?? 'Failed to create tab')
+    const created = data as unknown as Tab
+    setTabs((prev) => [...prev, created])
+    setCurrentId(created.id)
   }
 
   async function deleteTab(id: string) {
@@ -198,29 +209,46 @@ export default function Dashboard() {
     URL.revokeObjectURL(url)
   }
 
+  type ImportTab = {
+    name?: string
+    hours?: number
+    entries?: unknown[]
+    roles?: unknown[]
+    invoice?: unknown
+    notes?: unknown
+  }
+  type BackupDump = { tabs: ImportTab[] }
+
+  function isBackupDump(x: unknown): x is BackupDump {
+    if (!x || typeof x !== 'object') return false
+    const tabs = (x as Record<string, unknown>).tabs
+    return Array.isArray(tabs)
+  }
+
   async function importBackup(file: File) {
     if (!workspaceId) return alert(t('choose_workspace_first'))
     const text = await file.text()
-    let data: any = null
+    let parsed: unknown
     try {
-      data = JSON.parse(text)
+      parsed = JSON.parse(text)
     } catch {
       return alert(t('invalid_json'))
     }
-    if (!data || !Array.isArray(data.tabs)) return alert(t('invalid_backup'))
-    for (const ttab of data.tabs) {
+    if (!isBackupDump(parsed)) return alert(t('invalid_backup'))
+
+    for (const ttab of parsed.tabs) {
       await supabase.from('tabs').insert({
         workspace_id: workspaceId,
-        name: ttab.name,
-        hours: ttab.hours,
-        entries: ttab.entries || [],
-        roles: ttab.roles || [],
-        invoice: ttab.invoice || null,
-        notes: ttab.notes || null,
+        name: ttab.name ?? '',
+        hours: ttab.hours ?? 0,
+        entries: ttab.entries ?? [],
+        roles: ttab.roles ?? [],
+        invoice: ttab.invoice ?? null,
+        notes: ttab.notes ?? null,
       })
     }
     await refreshTabs()
-    alert(t('imported_tabs', { count: data.tabs.length }) || `Imported ${data.tabs.length} tab(s).`)
+    alert(t('imported_tabs', { count: parsed.tabs.length }) || `Imported ${parsed.tabs.length} tab(s).`)
   }
 
   // -------- Storage (workspace-scoped) --------
@@ -353,14 +381,14 @@ export default function Dashboard() {
       {/* Main */}
       <div className="max-w-6xl mx-auto px-4 py-6 flex gap-4">
         <Sidebar
-          tabs={tabsFiltered}
-          currentId={currentId}
-          onSelect={setCurrentId}
-          onAdd={addTab}
-          onDelete={deleteTab}
-          myRole={myRole}
-          currentUserId={userId}
+        tabs={tabsFiltered}
+        currentId={currentId}
+        onSelect={setCurrentId}
+        onAdd={addTab}
+        onDelete={deleteTab}
+        myRole={myRole}
         />
+
         <main className="flex-1 min-w-0">
           {!current ? (
             <div className="h-[60vh] grid place-items-center text-slate-500 dark:text-slate-300">

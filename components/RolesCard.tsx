@@ -32,23 +32,25 @@ export default function RolesCard({
     return Array.from(map.values())
   }, [entries, roles])
 
-  const totalAmount = useMemo(
-    () => perRole.reduce((a, b) => a + b.amount, 0),
-    [perRole]
-  )
+  const totalAmount = useMemo(() => perRole.reduce((a, b) => a + b.amount, 0), [perRole])
 
-  function updateRole(id: string, field: keyof Role, value: any) {
-    setRoles(roles.map(r => r.id === id ? { ...r, [field]: field === 'rate' ? Number(value) : value } : r))
+  function updateRole<K extends keyof Role>(id: string, field: K, value: Role[K]) {
+    setRoles(
+      roles.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    )
   }
 
   function addRole() {
-    setRoles([...roles, { id: crypto.randomUUID(), name: `${t('role')} ${roles.length + 1}`, rate: 0 }])
+    setRoles([
+      ...roles,
+      { id: crypto.randomUUID(), name: `${t('role')} ${roles.length + 1}`, rate: 0 },
+    ])
   }
 
   function removeRole(id: string) {
     // clear references in entries
-    setEntries(entries.map(e => e.roleId === id ? { ...e, roleId: undefined } : e))
-    setRoles(roles.filter(r => r.id !== id))
+    setEntries(entries.map((e) => (e.roleId === id ? { ...e, roleId: undefined } : e)))
+    setRoles(roles.filter((r) => r.id !== id))
   }
 
   return (
@@ -67,28 +69,27 @@ export default function RolesCard({
             </tr>
           </thead>
           <tbody>
-            {roles.map(r => {
-              const row = perRole.find(x => x.role.id === r.id)
+            {roles.map((r) => {
+              const row = perRole.find((x) => x.role.id === r.id)
               return (
                 <tr key={r.id} className="border-t border-slate-200 dark:border-slate-700">
                   <td className="px-4 py-2">
                     <input
                       value={r.name}
-                      onChange={e => updateRole(r.id, 'name', e.target.value)}
+                      onChange={(e) => updateRole(r.id, 'name', e.target.value)}
                       className="w-full border rounded-xl px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 dark:border-slate-700"
                     />
                   </td>
                   <td className="px-4 py-2">
                     <input
-                    type="number"
-                    step="0.01"
-                    value={r.rate}
-                    onChange={e => updateRole(r.id, 'rate', e.target.value)}
-                    inputMode="decimal"                 // nicer mobile keyboard
-                    className="no-spinner appearance-none w-full sm:w-28 border rounded-xl px-3 py-2
+                      type="number"
+                      step="0.01"
+                      value={r.rate}
+                      onChange={(e) => updateRole(r.id, 'rate', Number(e.target.value))}
+                      inputMode="decimal"                 // nicer mobile keyboard
+                      className="no-spinner appearance-none w-full sm:w-28 border rounded-xl px-3 py-2
                                 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 dark:border-slate-700"
                     />
-
                   </td>
                   <td className="px-4 py-2">
                     <span className="tabular-nums">{(row?.hours ?? 0).toFixed(2)}</span>
@@ -121,7 +122,9 @@ export default function RolesCard({
                 </button>
               </td>
               <td></td>
-              <td className="px-4 py-2 text-right text-slate-500 dark:text-slate-400">{t('total')}</td>
+              <td className="px-4 py-2 text-right text-slate-500 dark:text-slate-400">
+                {t('total')}
+              </td>
               <td className="px-4 py-2 font-semibold tabular-nums">{totalAmount.toFixed(2)}</td>
               <td></td>
             </tr>

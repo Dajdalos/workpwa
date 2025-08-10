@@ -14,7 +14,10 @@ export default function HoursTable({
   onChange: (rows: EntryRow[]) => void
 }) {
   const t = useT()
-  const total = useMemo(() => entries.reduce((a, b) => a + (Number(b.hours) || 0), 0), [entries])
+  const total = useMemo(
+    () => entries.reduce((a, b) => a + (Number(b.hours) || 0), 0),
+    [entries]
+  )
 
   function addRow() {
     onChange([
@@ -28,9 +31,11 @@ export default function HoursTable({
       },
     ])
   }
-  function upd(id: string, field: keyof EntryRow, value: any) {
+
+  function upd<K extends keyof EntryRow>(id: string, field: K, value: EntryRow[K]) {
     onChange(entries.map((r) => (r.id === id ? { ...r, [field]: value } : r)))
   }
+
   function rm(id: string) {
     onChange(entries.filter((r) => r.id !== id))
   }
@@ -41,7 +46,9 @@ export default function HoursTable({
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium">{t('daily_entries')}</div>
           <div className="badge">
-            <span className="text-slate-500 dark:text-slate-400">{t('total')} {t('hours')}</span>
+            <span className="text-slate-500 dark:text-slate-400">
+              {t('total')} {t('hours')}
+            </span>
             <span className="font-semibold tabular-nums">{total.toFixed(2)}</span>
           </div>
         </div>
@@ -62,13 +69,28 @@ export default function HoursTable({
             {entries.map((row) => (
               <tr key={row.id} className="table-row">
                 <td className="px-4 py-2">
-                  <input type="date" value={row.date} onChange={e => upd(row.id, 'date', e.target.value)} className="input px-2 py-1" />
+                  <input
+                    type="date"
+                    value={row.date}
+                    onChange={(e) => upd(row.id, 'date', e.target.value)}
+                    className="input px-2 py-1"
+                  />
                 </td>
                 <td className="px-4 py-2">
-                  <input type="number" step="0.25" value={row.hours} onChange={e => upd(row.id, 'hours', Number(e.target.value))} className="input no-spinner px-2 py-1 w-28" />
+                  <input
+                    type="number"
+                    step="0.25"
+                    value={row.hours}
+                    onChange={(e) => upd(row.id, 'hours', Number(e.target.value))}
+                    className="input no-spinner px-2 py-1 w-28"
+                  />
                 </td>
                 <td className="px-4 py-2">
-                  <select value={row.roleId||''} onChange={e => upd(row.id, 'roleId', e.target.value)} className="select px-2 py-1" >
+                  <select
+                    value={row.roleId || ''}
+                    onChange={(e) => upd(row.id, 'roleId', e.target.value)}
+                    className="select px-2 py-1"
+                  >
                     {roles.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name} ({r.rate.toFixed(2)})
@@ -77,10 +99,18 @@ export default function HoursTable({
                   </select>
                 </td>
                 <td className="px-4 py-2">
-                  <input value={row.note||''} onChange={e => upd(row.id, 'note', e.target.value)} className="input px-2 py-1 w-full" placeholder={t('what_worked_on')} />
+                  <input
+                    value={row.note || ''}
+                    onChange={(e) => upd(row.id, 'note', e.target.value)}
+                    className="input px-2 py-1 w-full"
+                    placeholder={t('what_worked_on')}
+                  />
                 </td>
                 <td className="px-2 text-right">
-                  <button onClick={() => rm(row.id)} className="btn-ghost p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20">
+                  <button
+                    onClick={() => rm(row.id)}
+                    className="btn-ghost p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                  >
                     <Trash2 className="w-4 h-4 text-rose-600" />
                   </button>
                 </td>

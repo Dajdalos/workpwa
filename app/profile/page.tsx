@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function ProfilePage() {
@@ -51,24 +52,43 @@ export default function ProfilePage() {
           <h1 className="text-xl font-semibold">Profile</h1>
 
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden border dark:border-slate-700 bg-slate-200">
+            <div className="w-20 h-20 rounded-full overflow-hidden border dark:border-slate-700 bg-slate-200 relative">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                <Image
+                  src={avatarUrl}
+                  alt="avatar"
+                  fill
+                  sizes="80px"
+                  className="object-cover"
+                  unoptimized
+                />
               ) : (
-                <div className="w-full h-full grid place-items-center text-slate-500">{(displayName || email || 'U')[0]}</div>
+                <div className="w-full h-full grid place-items-center text-slate-500">
+                  {(displayName || email || 'U')[0]}
+                </div>
               )}
             </div>
             <label className="btn">
               Change avatar
-              <input type="file" accept="image/*" className="hidden" onChange={e => {
-                const f = e.target.files?.[0]; if (f) pickAvatar(f)
-              }} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0]; if (f) pickAvatar(f)
+                }}
+              />
             </label>
           </div>
 
           <div>
             <label className="text-xs text-slate-600 dark:text-slate-300">Display name</label>
-            <input className="input mt-1" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name" />
+            <input
+              className="input mt-1"
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              placeholder="Your name"
+            />
           </div>
 
           <div>
@@ -77,7 +97,9 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex gap-2">
-            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
             <a className="btn" href="/dashboard">Back</a>
           </div>
         </div>
