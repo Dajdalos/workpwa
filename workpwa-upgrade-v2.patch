@@ -1,0 +1,242 @@
+diff --git a/public/manifest.webmanifest b/public/manifest.webmanifest
+new file mode 100644
+--- /dev/null
++++ b/public/manifest.webmanifest
+@@ -0,0 +14 @@
++{
++  "name": "WorkPWA",
++  "short_name": "WorkPWA",
++  "description": "A fast, installable work helper.",
++  "start_url": "/",
++  "scope": "/",
++  "display": "standalone",
++  "background_color": "#ffffff",
++  "theme_color": "#0ea5e9",
++  "icons": [
++    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
++    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
++  ]
++}
+diff --git a/public/sw.js b/public/sw.js
+new file mode 100644
+--- /dev/null
++++ b/public/sw.js
+@@ -0,0 +74 @@
++// Basic service worker for offline support
++const CACHE_NAME = "workpwa-v1";
++const OFFLINE_URL = "/offline";
++
++// Add core routes to pre-cache
++const PRECACHE_URLS = [
++  "/",
++  OFFLINE_URL
++];
++
++self.addEventListener("install", (event) => {
++  self.skipWaiting();
++  event.waitUntil(
++    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
++  );
++});
++
++self.addEventListener("activate", (event) => {
++  event.waitUntil(
++    (async () => {
++      const keys = await caches.keys();
++      await Promise.all(keys.map((key) => key !== CACHE_NAME && caches.delete(key)));
++      await self.clients.claim();
++    })()
++  );
++});
++
++// Network-first for navigations; otherwise cache-first for static assets
++self.addEventListener("fetch", (event) => {
++  const req = event.request;
++  const url = new URL(req.url);
++
++  // Only handle same-origin requests
++  if (url.origin !== self.location.origin) return;
++
++  if (req.mode === "navigate") {
++    event.respondWith(
++      (async () => {
++        try {
++          const fresh = await fetch(req);
++          const cache = await caches.open(CACHE_NAME);
++          cache.put(req, fresh.clone());
++          return fresh;
++        } catch (err) {
++          const cache = await caches.open(CACHE_NAME);
++          const cached = await cache.match(req);
++          return cached || (await cache.match(OFFLINE_URL));
++        }
++      })()
++    );
++    return;
++  }
++
++  // Cache-first for GET requests to assets
++  if (req.method === "GET") {
++    event.respondWith(
++      (async () => {
++        const cache = await caches.open(CACHE_NAME);
++        const cached = await cache.match(req);
++        if (cached) return cached;
++        try {
++          const res = await fetch(req);
++          // Skip opaque responses (e.g., cross-origin fonts/images) to avoid errors
++          if (res && res.status === 200 && res.type === "basic") {
++            cache.put(req, res.clone());
++          }
++          return res;
++        } catch (err) {
++          return cached; // may be undefined
++        }
++      })()
++    );
++  }
++});
+diff --git a/app/head.tsx b/app/head.tsx
+new file mode 100644
+--- /dev/null
++++ b/app/head.tsx
+@@ -0,0 +17 @@
++export default function Head() {
++  return (
++    <>
++      <title>WorkPWA</title>
++      <meta name="description" content="A fast, installable work helper." />
++      <meta name="theme-color" content="#0ea5e9" />
++      <link rel="manifest" href="/manifest.webmanifest" />
++      <link rel="icon" href="/icons/icon-192.png" />
++      <link rel="apple-touch-icon" href="/icons/icon-192.png" />
++      <script
++        dangerouslySetInnerHTML={{
++          __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js')); }`
++        }}
++      />
++    </>
++  );
++}
+diff --git a/pages/_document.tsx b/pages/_document.tsx
+new file mode 100644
+--- /dev/null
++++ b/pages/_document.tsx
+@@ -0,0 +27 @@
++import Document, { Html, Head, Main, NextScript } from "next/document";
++
++class MyDocument extends Document {
++  render() {
++    return (
++      <Html lang="en">
++        <Head>
++          <meta name="theme-color" content="#0ea5e9" />
++          <link rel="manifest" href="/manifest.webmanifest" />
++          <link rel="icon" href="/icons/icon-192.png" />
++          <link rel="apple-touch-icon" href="/icons/icon-192.png" />
++        </Head>
++        <body>
++          <Main />
++          <NextScript />
++          <script
++            dangerouslySetInnerHTML={{
++              __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js')); }`
++            }}
++          />
++        </body>
++      </Html>
++    );
++  }
++}
++
++export default MyDocument;
+diff --git a/app/offline/page.tsx b/app/offline/page.tsx
+new file mode 100644
+--- /dev/null
++++ b/app/offline/page.tsx
+@@ -0,0 +8 @@
++export default function OfflinePage() {
++  return (
++    <main className="mx-auto max-w-md p-6 text-center">
++      <h1 className="text-2xl font-semibold">You’re offline</h1>
++      <p className="mt-2 opacity-80">We’ll reconnect as soon as you’re back online.</p>
++    </main>
++  );
++}
+diff --git a/pages/offline.tsx b/pages/offline.tsx
+new file mode 100644
+--- /dev/null
++++ b/pages/offline.tsx
+@@ -0,0 +8 @@
++export default function OfflinePage() {
++  return (
++    <main style={{ maxWidth: 480, margin: "0 auto", padding: 24, textAlign: "center" }}>
++      <h1 style={{ fontSize: 24, fontWeight: 600 }}>You’re offline</h1>
++      <p style={{ marginTop: 8, opacity: 0.8 }}>We’ll reconnect as soon as you’re back online.</p>
++    </main>
++  );
++}
+diff --git a/middleware.js b/middleware.js
+new file mode 100644
+--- /dev/null
++++ b/middleware.js
+@@ -0,0 +20 @@
++import { NextResponse } from "next/server";
++
++export function middleware(req) {
++  const res = NextResponse.next();
++
++  // Basic security hardening
++  res.headers.set("X-Frame-Options", "DENY");
++  res.headers.set("X-Content-Type-Options", "nosniff");
++  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
++  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
++
++  // NOTE: Add a strict Content-Security-Policy if/when you eliminate any inline scripts.
++  // res.headers.set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self';");
++
++  return res;
++}
++
++export const config = {
++  matcher: "/:path*"
++};
+diff --git a/public/icons/README.md b/public/icons/README.md
+new file mode 100644
+--- /dev/null
++++ b/public/icons/README.md
+@@ -0,0 +7 @@
++This folder holds PWA icons.
++
++Included recommended sizes:
++- icon-192.png
++- icon-512.png
++
++You can replace these with your brand assets at any time.
+diff --git a/.github/workflows/lighthouse.yml b/.github/workflows/lighthouse.yml
+new file mode 100644
+--- /dev/null
++++ b/.github/workflows/lighthouse.yml
+@@ -0,0 +22 @@
++name: Lighthouse CI
++on:
++  push:
++  pull_request:
++
++jobs:
++  lhci:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++      - run: npm ci || npm i
++      - run: npm run build
++      - run: npm run start & npx wait-on http://localhost:3000
++      - uses: treosh/lighthouse-ci-action@v10
++        with:
++          urls: |
++            http://localhost:3000/
++          uploadArtifacts: true
++          temporaryPublicStorage: true
